@@ -1,126 +1,74 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"os"
+	"strings"
 )
 
-type stringArray []string
-
-var _ flag.Value = (*stringArray)(nil)
-
-// String is an implementation of the flag.Value interface
-func (sa *stringArray) String() string {
-	return fmt.Sprintf("%v", *sa)
-}
-
-// Set is an implementation of the flag.Value interface
-func (sa *stringArray) Set(value string) error {
-	*sa = append(*sa, value)
-	return nil
-}
-
 type FFsFlags struct {
-	HostAddr string
-	Include  []string
-	Exclude  []string
+	HostName string
+	Exclude  StringArray
 	Update   bool
+	Info     bool
 }
 
-func NewFFsFlags() (ffsFlags *FFsFlags) {
-	ffsFlags = &FFsFlags{}
-	*ffsFlags = avDefaultFlags
+func NewFlags() (ffsf *FFsFlags) {
+	ffsf = &FFsFlags{}
+	*ffsf = defaultFlags
+	hostname, err := os.Hostname()
+	if err == nil {
+		ffsf.HostName = hostname
+		return
+	} else {
+		fmt.Println("hostname:", err)
+	}
 	return
 }
 
-const (
-	ConfigName = "ffs.json"
-)
-
 var (
-	avDefaultFlags = FFsFlags{
-		Include: make([]string, 0),
+	defaultFlags = FFsFlags{
 		Exclude: make([]string, 0),
 		Update:  false,
 	}
 
-	connectUsage  = "remote connections (none,all,restrict)"
-	hostAddrUsage = "host ip address"
+	hostNameUsage = "name to use aa prefix"
 	updateUsage   = "update default values"
+	excludeUsage  = "cameras to exclude"
+	infoUsage     = "display camera information and exit"
 )
 
-func (ffsFlags *FFsFlags) Print() {
-	fmt.Printf("Host: %s\n", ffsFlags.HostAddr)
-	fmt.Printf("Remotes:\n")
-	for _, adr := range ffsFlags.Include {
+func (ffsf *FFsFlags) Print() {
+	fmt.Printf("Host: %s\n", ffsf.HostName)
+	fmt.Printf("Include:\n")
+	for _, adr := range ffsf.Exclude {
 		fmt.Printf("- %s\n", adr)
 	}
-	fmt.Printf("Update default values: %v\n", ffsFlags.Update)
+	fmt.Printf("Update default values: %v\n", ffsf.Update)
 }
 
-func (ffsFlags *FFsFlags) Parse() {
-	flag.StringVar(&ffsFlags.HostAddr, "address", ffsFlags.HostAddr, hostAddrUsage)
-	flag.StringVar(&ffsFlags.HostAddr, "a", ffsFlags.HostAddr, hostAddrUsage)
-	flag.BoolVar(&ffsFlags.Update, "update", ffsFlags.Update, updateUsage)
-	flag.BoolVar(&ffsFlags.Update, "u", ffsFlags.Update, updateUsage)
-
+func (ffsf *FFsFlags) Parse() {
+	flag.StringVar(&ffsf.HostName, "host", ffsf.HostName, hostNameUsage)
+	flag.StringVar(&ffsf.HostName, "h", ffsf.HostName, hostNameUsage)
+	flag.BoolVar(&ffsf.Update, "update", ffsf.Update, updateUsage)
+	flag.BoolVar(&ffsf.Update, "u", ffsf.Update, updateUsage)
+	flag.BoolVar(&ffsf.Info, "info", ffsf.Info, infoUsage)
+	flag.BoolVar(&ffsf.Info, "i", ffsf.Info, infoUsage)
+	flag.Var(&ffsf.Exclude, "exclude", excludeUsage)
+	flag.Var(&ffsf.Exclude, "x", excludeUsage)
 	flag.Parse()
+}
 
-	if ffsFlags.Update {
-		exists := ffsFlags.HasFile()
-		err := ffsFlags.Save()
-		if err != nil {
-			log.Printf("Error updating configuration file %s. %s", ConfigName, err)
-		} else if exists {
-			log.Print("Updated configuration file. ", ConfigName)
-		} else {
-			log.Print("Created configuration file. ", ConfigName)
+func (ffsf *FFsFlags) SetDefault() { *ffsf = defaultFlags }
+
+func (ffsf *FFsFlags) IsExcluded(name string) bool {
+	for _, excluded := range ffsf.Exclude {
+		if strings.Contains(name, excluded) {
+			log.Printf("'%s' is excluded '%s'", name, excluded)
+			return true
 		}
 	}
-
+	return false
 }
-
-func (ffsFlags *FFsFlags) HasFile() bool {
-	_, err := os.Stat(ConfigName)
-	return err == nil
-}
-
-func (ffsFlags *FFsFlags) Load() (err error) {
-	var buf []byte
-
-	buf, err = os.ReadFile(ConfigName)
-	if err != nil {
-		log.Printf("ffsFlags Load ReadFile error: %s", err)
-		return
-	}
-
-	err = json.Unmarshal(buf, ffsFlags)
-	if err != nil {
-		log.Printf("ffsFlags Load Unmarshal error: %s", err)
-		return
-	}
-
-	return
-}
-
-func (ffsFlags *FFsFlags) Save() (err error) {
-	var buf []byte
-	buf, err = json.MarshalIndent(ffsFlags, "", "  ")
-	if err != nil {
-		log.Printf("ffsFlags Save Marshall error: %s", err)
-		return
-	}
-
-	err = os.WriteFile(ConfigName, buf, 0644)
-	if err != nil {
-		log.Printf("ffsFlags Save WriteFile error: %s", err)
-		return
-	}
-
-	return
-}
-
-func (ffsFlags *FFsFlags) SetDefault() { *ffsFlags = avDefaultFlags }
