@@ -1,0 +1,23 @@
+{
+  "hostname": "crow",
+  "hostaddress": "192.168.10.7",
+  "hostport": "8554",
+  "cameras": [
+    {
+      "devicename": "FHD Camera Microphone: FHD Came",
+      "alias": "crow00",
+      "path": "/dev/video0",
+      "width": 1260,
+      "height": 720,
+      "framerate": 30
+    },
+    {
+      "devicename": "NexiGo N660 FHD Webcam: NexiGo ",
+      "alias": "crow01",
+      "path": "/dev/video2",
+      "width": 1920,
+      "height": 1080,
+      "framerate": 30
+    }
+  ]
+}

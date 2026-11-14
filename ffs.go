@@ -12,6 +12,7 @@ import (
 func main() {
 	flags := NewFlags()
 	flags.Parse()
+	flags.Print()
 
 	var (
 		config = Config{
@@ -25,15 +26,6 @@ func main() {
 		err error
 	)
 
-	if flags.Info {
-		configureAll(flags, &config)
-		err = config.Save()
-		if err != nil {
-			log.Printf("Error updating configuration file %s. %s", ConfigName, err)
-		}
-		return
-	}
-
 	exists := config.HasFile()
 	if exists {
 		log.Printf("existing configuration found")
@@ -42,24 +34,16 @@ func main() {
 			log.Printf("Error loading configuration file %s. %s", ConfigName, err)
 			return
 		}
-	} else {
-		log.Printf("create new configuration")
-		configureAll(flags, &config)
 	}
 
-	if flags.Update {
-		exists := config.HasFile()
+	config.ConfigureAll(flags)
+
+	if flags.Info || flags.Update {
 		err = config.Save()
 		if err != nil {
-			log.Printf("Error updating configuration file %s. %s", ConfigName, err)
-		} else if exists {
-			log.Print("Updated configuration file. ", ConfigName)
-		} else {
-			log.Print("Created configuration file. ", ConfigName)
+			log.Printf("Error saving configuration file %s. %s", ConfigName, err)
 		}
 	}
-
-	flags.Print()
 
 	if flags.Info {
 		return
@@ -122,7 +106,7 @@ func scanVideo(flags *FFsFlags, config *Config, active map[string]bool) (scanned
 		_, ok := active[deviceInfo.Path]
 		if !ok {
 			scanned = append(scanned, deviceInfo.Path)
-			cameraInfo := configure(flags, config, deviceInfo)
+			cameraInfo := config.Configure(flags, deviceInfo)
 			activity := NewActivity(cameraInfo, config.HostAddress, config.HostPort)
 			go activity.Run(config.startChan, config.endChan)
 		}

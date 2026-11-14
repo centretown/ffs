@@ -41,12 +41,13 @@ var (
 )
 
 func (ffsf *FFsFlags) Print() {
-	fmt.Printf("Host: %s\n", ffsf.HostName)
-	fmt.Printf("Include:\n")
+	fmt.Printf("Host:   %s\n", ffsf.HostName)
+	fmt.Printf("Info:   %v\n", ffsf.Info)
+	fmt.Printf("Update: %v\n", ffsf.Update)
+	fmt.Printf("Exclude:\n")
 	for _, adr := range ffsf.Exclude {
-		fmt.Printf("- %s\n", adr)
+		fmt.Printf("\t%s\n", adr)
 	}
-	fmt.Printf("Update default values: %v\n", ffsf.Update)
 }
 
 func (ffsf *FFsFlags) Parse() {
