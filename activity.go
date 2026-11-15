@@ -63,11 +63,11 @@ func (m Activities) CancelAll() {
 	}
 }
 
-func (activity *Activity) Run(startChan, endChan chan string) {
-	startChan <- activity.Path
+func (activity *Activity) Run(startChan, endChan chan *Activity) {
+	startChan <- activity
 	err := activity.Stream.Run()
 	if err != nil {
 		log.Printf("path: '%s' error=%v", activity.Path, err)
 	}
-	endChan <- activity.Path
+	endChan <- activity
 }

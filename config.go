@@ -20,6 +20,7 @@ type CameraInfo struct {
 	Width      int    `json:"width"`     // 2560
 	Height     int    `json:"height"`    // 1440
 	FrameRate  int    `json:"framerate"` // 30
+	Active     bool   `json:"-"`
 }
 
 type Config struct {
@@ -27,8 +28,8 @@ type Config struct {
 	HostAddress string        `json:"hostaddress"` // 192.168.10.7
 	HostPort    string        `json:"hostport"`    // :8554
 	Cameras     []*CameraInfo `json:"cameras"`
-	startChan   chan string
-	endChan     chan string
+	startChan   chan *Activity
+	endChan     chan *Activity
 }
 
 func (config *Config) HasFile() bool {
@@ -71,66 +72,63 @@ func (config *Config) Save() (err error) {
 	return
 }
 
-func (config *Config) FindInfo(deviceInfo *v4l.DeviceInfo) *CameraInfo {
+func (config *Config) FindInfo(deviceInfo *v4l.DeviceInfo) (*CameraInfo, bool) {
 	for _, cam := range config.Cameras {
-		if cam.Path == deviceInfo.Path {
-			return cam
+		if cam.Active {
+			continue
 		}
 
 		if cam.DeviceName == deviceInfo.DeviceName {
-			return cam
+			return cam, true
 		}
 	}
-	return nil
+	return nil, false
 }
 
 const UVCVideoDriver = "uvcvideo"
 
-func (config *Config) Configure(flags *FFsFlags, deviceInfo v4l.DeviceInfo) *CameraInfo {
-	if flags.IsExcluded(deviceInfo.DeviceName) {
-		fmt.Printf("Device '%s' has been excluded\n", deviceInfo.DeviceName)
-		return nil
-	}
-
-	cameraInfo := config.FindInfo(&deviceInfo)
-	configured := cameraInfo != nil
-	if !configured {
-		cameraInfo = &CameraInfo{
-			DeviceName: deviceInfo.DeviceName,
+func (config *Config) Configure(flags *FFsFlags, deviceInfo v4l.DeviceInfo) (cameraInfo *CameraInfo, err error) {
+	defer func() {
+		if err != nil {
+			log.Printf("Configure: %v", err)
 		}
-		fmt.Printf("Device '%s' has been created\n", deviceInfo.DeviceName)
+	}()
+
+	if flags.IsExcluded(deviceInfo.DeviceName) {
+		err = fmt.Errorf("Device name '%s' has been excluded\n", deviceInfo.DeviceName)
+		return
 	}
+	cameraInfo, found := config.FindInfo(&deviceInfo)
 
-	cameraInfo.Path = deviceInfo.Path
-
-	fmt.Print(deviceInfo.Path, "...")
 	if !deviceInfo.Camera {
-		fmt.Printf("Not a camera %s\n", deviceInfo.Path)
-		return nil
+		err = fmt.Errorf("Not a camera %s\n", deviceInfo.Path)
+		return
 	}
-
-	fmt.Printf("Uses '%s' driver camera %s\n",
-		deviceInfo.DriverName,
-		deviceInfo.Path)
 
 	if deviceInfo.DriverName != UVCVideoDriver {
-		return nil
+		err = fmt.Errorf("the '%s' driver at '%s' is not supported\n",
+			deviceInfo.DriverName, deviceInfo.Path)
+		return
 	}
 
-	device, err := v4l.Open(deviceInfo.Path)
+	var device *v4l.Device
+	device, err = v4l.Open(deviceInfo.Path)
 	if err != nil {
-		fmt.Printf("Error opening device %s: %v\n",
-			deviceInfo.Path, err)
-		return nil
+		err = fmt.Errorf("unable to open device %s: %v\n", deviceInfo.Path, err)
+		return
 	}
 
 	fmt.Print("update/add camera\n")
 
-	if len(cameraInfo.Alias) < 1 {
-		cameraInfo.Alias = fmt.Sprintf("%s%02d",
-			config.HostName, len(config.Cameras))
+	if !found {
+		cameraInfo = &CameraInfo{
+			DeviceName: deviceInfo.DeviceName,
+			Alias:      config.NewAlias(),
+		}
+		fmt.Printf("a new device '%s' has been added\n", deviceInfo.DeviceName)
 	}
 
+	cameraInfo.Path = deviceInfo.Path
 	if cameraInfo.Width == 0 || cameraInfo.Height == 0 {
 		cameraInfo.Width = 1920
 		cameraInfo.Height = 1080
@@ -140,13 +138,14 @@ func (config *Config) Configure(flags *FFsFlags, deviceInfo v4l.DeviceInfo) *Cam
 		cameraInfo.FrameRate = 30
 	}
 
-	if !configured {
+	if !found {
 		config.Cameras = append(config.Cameras, cameraInfo)
 	}
+
 	if flags.Info {
 		info(&deviceInfo, device)
 	}
-	return cameraInfo
+	return cameraInfo, nil
 }
 
 func (config *Config) ConfigureAll(flags *FFsFlags) {
@@ -157,10 +156,14 @@ func (config *Config) ConfigureAll(flags *FFsFlags) {
 	}
 }
 
-func info(deviceInfo *v4l.DeviceInfo, device *v4l.Device) {
+func info(deviceInfo *v4l.DeviceInfo, device *v4l.Device) (err error) {
+	defer func() {
+		if err != nil {
+			log.Printf("Configure: %v", err)
+		}
+	}()
 
 	var (
-		err      error
 		configs  []v4l.DeviceConfig
 		controls []v4l.ControlInfo
 	)
@@ -171,7 +174,7 @@ func info(deviceInfo *v4l.DeviceInfo, device *v4l.Device) {
 	}
 
 	if controls == nil {
-		fmt.Printf("Controls list invalid %s@%s: %v\n", deviceInfo.DeviceName, deviceInfo.Path, err)
+		err = fmt.Errorf("Controls list invalid %s@%s: %v\n", deviceInfo.DeviceName, deviceInfo.Path, err)
 		return
 	}
 
@@ -179,7 +182,7 @@ func info(deviceInfo *v4l.DeviceInfo, device *v4l.Device) {
 	for _, control := range controls {
 		value, err := device.GetControl(control.CID)
 		if err != nil {
-			fmt.Printf("Error GetControl %s@%s: %v", deviceInfo.DeviceName, deviceInfo.Path, err)
+			err = fmt.Errorf("Error GetControl %s@%s: %v", deviceInfo.DeviceName, deviceInfo.Path, err)
 			continue
 		}
 
@@ -190,7 +193,7 @@ func info(deviceInfo *v4l.DeviceInfo, device *v4l.Device) {
 
 	configs, err = device.ListConfigs()
 	if err != nil {
-		fmt.Printf("Error listing configs %s@%s: %v\n", deviceInfo.DeviceName, deviceInfo.Path, err)
+		err = fmt.Errorf("Error listing configs %s@%s: %v\n", deviceInfo.DeviceName, deviceInfo.Path, err)
 		return
 	}
 
@@ -200,19 +203,39 @@ func info(deviceInfo *v4l.DeviceInfo, device *v4l.Device) {
 	}
 
 	if len(configs) > 0 {
-		err := device.SetConfig(configs[0])
+		err = device.SetConfig(configs[0])
 		if err != nil {
-			fmt.Printf("Error setting config: %v\n", err)
+			err = fmt.Errorf("Error setting config: %v\n", err)
 			return
 		}
 
 		err = device.TurnOn()
 		if err != nil {
-			fmt.Printf("%s\n\tturning on: %v\n", deviceInfo.DeviceName, err)
+			err = fmt.Errorf("%s\n\tturning on: %v\n", deviceInfo.DeviceName, err)
 			return
 		}
 
 		device.TurnOff()
 		fmt.Printf("%s\n\tcurrently available\n", deviceInfo.DeviceName)
 	}
+	return nil
+}
+
+// ensure no dups in current list
+func (config *Config) NewAlias() (alias string) {
+	i := len(config.Cameras)
+	last := i
+	for {
+		alias = fmt.Sprintf("%s%02d", config.HostName, i)
+		for _, c := range config.Cameras {
+			if c.Alias == alias {
+				i++
+				break
+			}
+		}
+		if i == last {
+			break
+		}
+	}
+	return
 }
