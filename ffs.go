@@ -1,6 +1,8 @@
 package main
 
 import (
+	"ffs/query"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -107,6 +109,11 @@ func main() {
 
 func scanVideo(flags *FFsFlags, config *Config, active map[string]*Activity) (scanned []string) {
 	scanned = make([]string, 0)
+	err := scanMtx(config.HostAddress, "9997")
+	if err != nil {
+		return
+	}
+
 	devices := v4l.FindDevices()
 	for _, deviceInfo := range devices {
 		_, ok := active[deviceInfo.Path]
@@ -120,4 +127,18 @@ func scanVideo(flags *FFsFlags, config *Config, active map[string]*Activity) (sc
 		}
 	}
 	return
+}
+
+// http://dave:football@192.168.10.7:9997/v3/info
+type MtxInfo struct {
+	Started string `json:"started"`
+	Version string `json:"version"`
+}
+
+func scanMtx(url, port string) error {
+	info := &MtxInfo{}
+	user := "dave"
+	password := "football"
+	request := fmt.Sprintf("http://%s:%s@%s:%s/v3/info", user, password, url, port)
+	return query.QueryAndDecode(request, info)
 }
