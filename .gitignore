@@ -2,3 +2,4 @@ dbus
 merge
 ffs.json
 ffs
+password.go
