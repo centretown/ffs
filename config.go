@@ -85,7 +85,10 @@ func (config *Config) FindInfo(deviceInfo *v4l.DeviceInfo) (*CameraInfo, bool) {
 	return nil, false
 }
 
-const UVCVideoDriver = "uvcvideo"
+const (
+	UVCVideoDriver = "uvcvideo"
+	V4L2LOOPBACK   = "v4l2 loopback"
+)
 
 func (config *Config) Configure(flags *FFsFlags, deviceInfo v4l.DeviceInfo) (cameraInfo *CameraInfo, err error) {
 	defer func() {
@@ -105,7 +108,7 @@ func (config *Config) Configure(flags *FFsFlags, deviceInfo v4l.DeviceInfo) (cam
 		return
 	}
 
-	if deviceInfo.DriverName != UVCVideoDriver {
+	if deviceInfo.DriverName != UVCVideoDriver && deviceInfo.DriverName != V4L2LOOPBACK {
 		err = fmt.Errorf("the '%s' driver at '%s' is not supported\n",
 			deviceInfo.DriverName, deviceInfo.Path)
 		return
@@ -130,8 +133,8 @@ func (config *Config) Configure(flags *FFsFlags, deviceInfo v4l.DeviceInfo) (cam
 
 	cameraInfo.Path = deviceInfo.Path
 	if cameraInfo.Width == 0 || cameraInfo.Height == 0 {
-		cameraInfo.Width = 1920
-		cameraInfo.Height = 1080
+		cameraInfo.Width = 1280
+		cameraInfo.Height = 720
 	}
 
 	if cameraInfo.FrameRate == 0 {
