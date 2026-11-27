@@ -96,10 +96,11 @@ func main() {
 			log.Printf("signal from '%s' ended", ended.Path)
 
 		case <-ticker.C:
-			scanned := scanVideo(flags, &config, active)
-			if len(scanned) > 0 {
-				log.Printf("new %v", scanned)
-			}
+			scanVideo(flags, &config, active)
+			// scanned := scanVideo(flags, &config, active)
+			// if len(scanned) > 0 {
+			// 	log.Printf("new %v", scanned)
+			// }
 
 		default:
 			time.Sleep(time.Millisecond * 5)
@@ -118,9 +119,9 @@ func scanVideo(flags *FFsFlags, config *Config, active map[string]*Activity) (sc
 	for _, deviceInfo := range devices {
 		_, ok := active[deviceInfo.Path]
 		if !ok {
-			scanned = append(scanned, deviceInfo.Path)
 			cameraInfo, err := config.Configure(flags, deviceInfo)
 			if err == nil {
+				scanned = append(scanned, deviceInfo.Path)
 				activity := NewActivity(cameraInfo, config.HostAddress, config.HostPort)
 				go activity.Run(config.startChan, config.endChan)
 			}

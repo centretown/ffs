@@ -21,10 +21,12 @@ func NewActivity(cam *CameraInfo, hostAddress, hostPort string) (ffs *Activity) 
 	ffs = &Activity{}
 
 	inputArgs := ffmpeg.KwArgs{
-		"f":            "v4l2",
-		"framerate":    30,
-		"video_size":   fmt.Sprintf("%dx%d", cam.Width, cam.Height),
-		"input_format": "mjpeg",
+		"f":          "v4l2",
+		"framerate":  30,
+		"video_size": fmt.Sprintf("%dx%d", cam.Width, cam.Height),
+	}
+	if !cam.Loopback {
+		inputArgs["input_format"] = "mjpeg"
 	}
 	/*
 		ffmpeg -f v4l2 -framerate 30 -video_size 2560x1440 -input_format mjpeg \

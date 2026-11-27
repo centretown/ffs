@@ -21,6 +21,7 @@ type CameraInfo struct {
 	Height     int    `json:"height"`    // 1440
 	FrameRate  int    `json:"framerate"` // 30
 	Active     bool   `json:"-"`
+	Loopback   bool   `json:"-"`
 }
 
 type Config struct {
@@ -91,14 +92,16 @@ const (
 )
 
 func (config *Config) Configure(flags *FFsFlags, deviceInfo v4l.DeviceInfo) (cameraInfo *CameraInfo, err error) {
+	var printerr = true
 	defer func() {
-		if err != nil {
+		if err != nil && printerr {
 			log.Printf("Configure: %v", err)
 		}
 	}()
 
 	if flags.IsExcluded(deviceInfo.DeviceName) {
 		err = fmt.Errorf("Device name '%s' has been excluded\n", deviceInfo.DeviceName)
+		printerr = false
 		return
 	}
 	cameraInfo, found := config.FindInfo(&deviceInfo)
@@ -114,6 +117,7 @@ func (config *Config) Configure(flags *FFsFlags, deviceInfo v4l.DeviceInfo) (cam
 		return
 	}
 
+	cameraInfo.Loopback = deviceInfo.DriverName == V4L2LOOPBACK
 	var device *v4l.Device
 	device, err = v4l.Open(deviceInfo.Path)
 	if err != nil {

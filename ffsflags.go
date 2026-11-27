@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 )
@@ -67,7 +66,7 @@ func (ffsf *FFsFlags) SetDefault() { *ffsf = defaultFlags }
 func (ffsf *FFsFlags) IsExcluded(name string) bool {
 	for _, excluded := range ffsf.Exclude {
 		if strings.Contains(name, excluded) {
-			log.Printf("'%s' is excluded '%s'", name, excluded)
+			// log.Printf("'%s' is excluded '%s'", name, excluded)
 			return true
 		}
 	}
