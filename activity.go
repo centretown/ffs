@@ -133,13 +133,16 @@ func (activity *Activity) Pipe(writer *io.PipeWriter, done chan int) {
 	defer device.TurnOff()
 
 	bufInfo, err = device.BufferInfo()
+	if err != nil {
+		return
+	}
 	pixels = make([]byte, bufInfo.BufferSize)
 	log.Printf("buffer size %d", bufInfo.BufferSize)
 
 	time.Sleep(time.Second * 1)
 
 	for {
-		// time.Sleep(time.Millisecond * 2)
+		time.Sleep(time.Millisecond * 2)
 		select {
 		case <-done:
 			err = writer.Close()
