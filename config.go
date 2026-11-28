@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/korandiz/v4l"
+	"github.com/centretown/v4l"
 )
 
 const (
@@ -20,6 +20,7 @@ type CameraInfo struct {
 	Width      int    `json:"width"`     // 2560
 	Height     int    `json:"height"`    // 1440
 	FrameRate  int    `json:"framerate"` // 30
+	Piped      bool   `json:"piped"`     // false
 	Active     bool   `json:"-"`
 	Loopback   bool   `json:"-"`
 }

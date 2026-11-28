@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/korandiz/v4l"
+	"github.com/centretown/v4l"
 )
 
 func main() {

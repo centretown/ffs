@@ -1,0 +1,23 @@
+{
+  "hostname": "crow",
+  "hostaddress": "192.168.10.7",
+  "hostport": "8554",
+  "cameras": [
+    {
+      "devicename": "GENERAL - UVC : GENERAL - UVC ",
+      "alias": "crow00",
+      "path": "/dev/video0",
+      "width": 1280,
+      "height": 720,
+      "framerate": 30
+    },
+    {
+      "devicename": "OBS Virtual Camera",
+      "alias": "crow01",
+      "path": "/dev/video2",
+      "width": 1280,
+      "height": 720,
+      "framerate": 30
+    }
+  ]
+}
